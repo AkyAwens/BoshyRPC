@@ -20,7 +20,7 @@ Made mostly for fun, took ~3 hours. Don't expect regular updates 😅
 
 1. Make sure you have **Java 8+** installed  
 2. Launch **Discord**
-3. Run `Main.java` (or a compiled `.jar`)
+3. Run compiled jar in releases.
 4. Start *I Wanna Be The Boshy*
 5. That’s it — your Discord status will update automatically
 
