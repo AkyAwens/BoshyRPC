@@ -28,7 +28,7 @@ Made mostly for fun, took ~3 hours. Don't expect regular updates 😅
 
 ### 👀 Example Discord Status
 
-![BoshyRPC Preview](https://github.com/AkyAwens/BoshyRPC/blob/91d77afced21126a3b9b85ef8729bd7b29bf7738/assets/showcase.png)
+![BoshyRPC Preview](https://github.com/AkyAwens/BoshyRPC/blob/6c28f3321286bb1531ede48a446c3448839105ee/assets/showcase.png)
 
 ---
 
