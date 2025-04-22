@@ -1,5 +1,6 @@
 package dev.akyawen.boshyrpc;
 
+import java.awt.GraphicsEnvironment;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -8,6 +9,8 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+
+import javax.swing.JOptionPane;
 
 import club.minnced.discord.rpc.DiscordEventHandlers;
 import club.minnced.discord.rpc.DiscordRPC;
@@ -23,11 +26,30 @@ public class Main {
     private static final String CLIENT_ID = "1363968302677885140";
     private static int lastFrame = -1;
     private static File saveFile = null;
-    private static File lastSaveFile = null;
     private static int deaths;
     private static int difficulty;
+    private static int timeInSave;
+    private static long lastModifiedSaveTime = -1;
 
     public static void main(String[] args) throws InterruptedException {
+    	
+    	String os = System.getProperty("os.name");
+    	if (!os.toLowerCase().contains("win")) {
+    	    System.out.println("Currently not supported in \"" + os + "\", only Windows.");
+    	    System.exit(1);
+    	}
+    	
+    	if (System.console() == null && !GraphicsEnvironment.isHeadless()) {
+    	    try {
+    	        String jarPath = new File(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI()).getPath();
+    	        String command = "cmd /c start cmd /k \"java -jar \"" + jarPath + "\"\"";
+    	        Runtime.getRuntime().exec(command);
+    	    } catch (Exception e) {
+    	        JOptionPane.showMessageDialog(null, "ERROR: " + e.getMessage());
+    	    }
+    	    System.exit(0);
+    	}
+    	
         System.out.println("WAITING FOR BOSHY.EXE");
 
         while (MemoryReader.getProcessId("Boshy.exe") == -1 || MemoryReader.getProcessId("Boshy.exe") == 0) {
@@ -47,7 +69,7 @@ public class Main {
 
         DiscordRichPresence presence = new DiscordRichPresence();
         presence.largeImageKey = "boshy";
-        presence.largeImageText = "I Wanna Be The Boshy";
+        presence.largeImageText = "Time: null";
         presence.smallImageKey = "dark_boshy";
         presence.smallImageText = "Difficulty: Unknown";
         presence.details = "Currently on: null";
@@ -60,7 +82,7 @@ public class Main {
             while (!Thread.currentThread().isInterrupted()) {
                 lib.Discord_RunCallbacks();
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(500);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                 }
@@ -85,31 +107,38 @@ public class Main {
             }
 
             if (lastFrame != 0 && lastFrame != 1 && lastFrame != 2) {
-                File currentSaveFile = getCurrentSaveFile();
-                if (currentSaveFile != null && !currentSaveFile.equals(lastSaveFile)) {
-                    saveFile = currentSaveFile;
-                    lastSaveFile = saveFile;
+            	File currentSaveFile = getCurrentSaveFile();
+            	if (currentSaveFile != null) {
+            	    try {
+            	        long currentModifiedTime = Files.getLastModifiedTime(currentSaveFile.toPath()).toMillis();
+            	        if (currentModifiedTime != lastModifiedSaveTime) {
+            	            lastModifiedSaveTime = currentModifiedTime;
+            	            saveFile = currentSaveFile;
 
-                    try {
-                        String saveFileDecrypted = new RC4("BLOB".getBytes()).processFile(saveFile.toPath());
-                        IniParser parse = new IniParser(saveFileDecrypted);
-                        String deathsString = parse.getValue("Deaths");
-                        String difficultyString = parse.getValue("Difficulty");
+            	            String saveFileDecrypted = new RC4("BLOB".getBytes()).processFile(saveFile.toPath());
+            	            IniParser parse = new IniParser(saveFileDecrypted);
+            	            String deathsString = parse.getValue("Deaths");
+            	            String difficultyString = parse.getValue("Difficulty");
+            	            String timeInSaveString = parse.getValue("TimeSeconds");
 
-                        if (deathsString != null && difficultyString != null) {
-                            deaths = Integer.parseInt(deathsString);
-                            difficulty = Integer.parseInt(difficultyString);
-                            presence.state = "Deaths: " + deaths;
-                            presence.smallImageText = "Difficulty: " + Difficulties.fromDiffNumber(difficulty).getName();
-                            lib.Discord_UpdatePresence(presence);
-                        }
-                    } catch (IOException | NumberFormatException e) {
-                        System.out.println("Ошибка при обработке файла сохранения: " + e.getMessage());
-                    }
-                }
+            	            if (deathsString != null && difficultyString != null) {
+            	                deaths = Integer.parseInt(deathsString);
+            	                difficulty = Integer.parseInt(difficultyString);
+            	                timeInSave = Integer.parseInt(timeInSaveString);
+            	                presence.state = "Deaths: " + deaths;
+            	                presence.smallImageText = "Difficulty: " + Difficulties.fromDiffNumber(difficulty).getName();
+            	                presence.largeImageText = "Time: " + timeFormatter(timeInSave);
+            	                lib.Discord_UpdatePresence(presence);
+            	            }
+            	        }
+            	    } catch (IOException | NumberFormatException e) {
+            	        System.out.println("Ошибка при обработке файла сохранения: " + e.getMessage());
+            	    }
+            	}
             } else {
                 presence.smallImageText = "Difficulty: Unknown";
                 presence.state = "Deaths: 0";
+                presence.largeImageText = "Time: null";
                 lib.Discord_UpdatePresence(presence);
             }
 
@@ -161,5 +190,20 @@ public class Main {
         }
 
         return lastModifiedFile;
+    }
+    
+    public static String timeFormatter(long totalSeconds) {
+        long seconds = totalSeconds % 60;
+        long minutes = (totalSeconds / 60) % 60;
+        long hours = (totalSeconds / 3600) % 24;
+        long days = totalSeconds / (3600 * 24);
+
+        StringBuilder sb = new StringBuilder();
+        if (days > 0) sb.append(days).append("d ");
+        if (hours > 0 || days > 0) sb.append(hours).append("h ");
+        if (minutes > 0 || hours > 0 || days > 0) sb.append(minutes).append("m ");
+        sb.append(seconds).append("s");
+
+        return sb.toString().trim();
     }
 }
